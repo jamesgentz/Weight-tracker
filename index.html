@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weight Trend</title>
+<meta name="theme-color" content="#2446D8">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root {
+  --paper: #EEF2F6;
+  --surface: #FFFFFF;
+  --ink: #101C27;
+  --muted: #5B6B7A;
+  --line: #D5DDE5;
+  --accent: #2446D8;
+  --accent-ink: #FFFFFF;
+  --good: #13795B;
+  --warn: #A86400;
+  --goalc: #B7791F;
+  --track: #D8E0E8;
+  --tick: #9FB0C0;
+  --dot: #7C8EA3;
+  --danger: #B3261E;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0E1822;
+    --surface: #16232F;
+    --ink: #E8EEF4;
+    --muted: #93A4B5;
+    --line: #26364A;
+    --accent: #7C98FF;
+    --accent-ink: #0E1822;
+    --good: #4FD0A5;
+    --warn: #F0B35A;
+    --goalc: #E2B04F;
+    --track: #243548;
+    --tick: #4A6075;
+    --dot: #7C90A6;
+    --danger: #FF8A80;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input { font: inherit; color: inherit; }
+h1, h2, p, dl, dd, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
+}
+
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Top bar */
+.top { display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
+.top h1 { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.icon-btn {
+  width: 44px; height: 44px; margin-right: -10px;
+  display: grid; place-items: center;
+  background: none; border: 0; border-radius: 12px; color: var(--muted); cursor: pointer;
+}
+.icon-btn:hover { color: var(--ink); }
+
+/* Hero */
+.hero { padding: 20px 0 8px; }
+.hero-label { color: var(--muted); font-size: 15px; }
+.hero-num { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+.hero-num #heroNum {
+  font-size: clamp(64px, 21vw, 96px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.hero-unit { font-size: 22px; font-weight: 550; color: var(--muted); }
+.hero-sub { margin-top: 10px; font-size: 18px; font-weight: 550; }
+.hero-sub .quiet { display: block; margin-top: 2px; font-size: 14px; font-weight: 400; color: var(--muted); }
+
+/* The ruler: start on the left, goal on the right */
+.ruler { margin-top: 26px; padding: 0 10px; }
+.ruler[hidden] { display: none; }
+.track { position: relative; height: 12px; border-radius: 6px; background: var(--track); }
+.fill { height: 100%; width: 0; border-radius: 6px; background: var(--accent); transition: width .6s cubic-bezier(.2,.7,.2,1); }
+.marker {
+  position: absolute; top: 50%; left: 0; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--surface); border: 5px solid var(--accent);
+  transform: translate(-50%, -50%);
+  transition: left .6s cubic-bezier(.2,.7,.2,1);
+}
+.ticks {
+  height: 8px; margin-top: 10px;
+  background-image: linear-gradient(to right, var(--tick) 1px, transparent 1px);
+  background-size: 10% 100%;
+  border-right: 1px solid var(--tick);
+}
+.ends { display: flex; justify-content: space-between; margin: 6px -10px 0; font-size: 14px; color: var(--muted); }
+.ends b { color: var(--ink); font-weight: 600; }
+
+/* Log form */
+.panel { margin-top: 30px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.row { display: flex; gap: 12px; }
+.grow { flex: 1; min-width: 0; }
+.field { display: block; position: relative; }
+.field > span:first-child { display: block; margin-bottom: 6px; font-size: 14px; color: var(--muted); }
+.field input[type=text], .field input[type=date], .field input[type=number] {
+  width: 100%; height: 52px; padding: 0 14px;
+  background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px;
+  font-size: 20px; font-weight: 600;
+}
+.field input[type=date] { font-size: 16px; font-weight: 500; min-width: 0; }
+.field .suffix { position: absolute; right: 14px; bottom: 14px; color: var(--muted); pointer-events: none; }
+.field input.has-suffix { padding-right: 44px; }
+.err { min-height: 22px; margin: 8px 2px 4px; font-size: 14px; color: var(--danger); }
+.primary {
+  width: 100%; height: 52px; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font-weight: 650; font-size: 17px;
+}
+.primary:active { transform: translateY(1px); }
+.secondary {
+  height: 44px; padding: 0 16px; border-radius: 12px; cursor: pointer;
+  background: none; border: 1.5px solid var(--line); font-weight: 550;
+}
+.text-btn { background: none; border: 0; padding: 10px 0; color: var(--accent); font-weight: 600; cursor: pointer; }
+
+/* Sections */
+.sec { margin-top: 40px; }
+.sec h2 { font-size: 20px; font-weight: 650; letter-spacing: -0.015em; }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.seg { display: inline-flex; padding: 3px; background: var(--track); border-radius: 10px; }
+.seg button {
+  height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  font-size: 14px; font-weight: 550; color: var(--muted);
+}
+.seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+
+.readout { margin-top: 14px; min-height: 24px; font-size: 15px; color: var(--muted); }
+.readout strong { color: var(--ink); font-size: 17px; }
+.chart { position: relative; margin: 6px -6px 0; }
+.chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.chart .empty { padding: 56px 20px; text-align: center; color: var(--muted); }
+.grid { stroke: var(--line); stroke-width: 1; }
+.ylab, .xlab { fill: var(--muted); font-size: 11px; }
+.goal-line { stroke: var(--goalc); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.goal-lab { fill: var(--goalc); font-size: 12px; font-weight: 600; }
+.trend { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.dot { fill: var(--dot); opacity: .75; }
+.cursor { stroke: var(--accent); stroke-opacity: .4; stroke-width: 1; }
+.dot-active { fill: var(--surface); stroke: var(--accent); stroke-width: 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; }
+.lg-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot); }
+.lg-trend { width: 18px; height: 3px; border-radius: 2px; background: var(--accent); }
+.lg-goal { width: 18px; height: 0; border-top: 2px dashed var(--goalc); }
+
+/* Numbers */
+.stats { margin-top: 8px; }
+.stats > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.stats dt { color: var(--muted); }
+.stats dd { text-align: right; font-weight: 650; font-size: 17px; }
+.stats dd small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
+.good { color: var(--good); }
+.warn { color: var(--warn); }
+
+/* History */
+.hist { margin-top: 6px; }
+.hist li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.hist .when { flex: 1; color: var(--muted); }
+.hist .w { font-weight: 650; font-size: 17px; }
+.hist .d { width: 64px; text-align: right; font-size: 14px; color: var(--muted); }
+.hist .del { width: 40px; height: 40px; margin-right: -10px; border: 0; background: none; border-radius: 10px; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.hist .del:hover { color: var(--danger); }
+.hist-empty { padding: 18px 0; color: var(--muted); }
+
+/* Toast */
+#toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: 14px;
+  max-width: calc(100vw - 32px); padding: 12px 16px; border-radius: 12px;
+  background: var(--ink); color: var(--paper); font-weight: 550;
+  transition: opacity .2s, transform .2s;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#toast button { background: none; border: 0; padding: 0; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* Dialog */
+dialog {
+  width: min(92vw, 440px); padding: 0; border: 0; border-radius: 22px;
+  background: var(--surface); color: var(--ink);
+}
+dialog::backdrop { background: rgba(8, 16, 24, .55); }
+dialog form { padding: 24px; }
+dialog h2 { font-size: 22px; font-weight: 650; letter-spacing: -0.015em; }
+dialog .lede { margin-top: 6px; color: var(--muted); }
+dialog .field { margin-top: 18px; }
+.unit-pick { display: flex; margin-top: 18px; padding: 3px; background: var(--track); border-radius: 10px; }
+.unit-pick label { flex: 1; text-align: center; }
+.unit-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.unit-pick span { display: block; padding: 8px 0; border-radius: 8px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.unit-pick input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.unit-pick input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 1px; }
+.dlg-actions { display: flex; gap: 10px; margin-top: 24px; }
+.dlg-actions .primary { flex: 1; }
+.data-tools { margin-top: 22px; padding-top: 6px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.data-tools .text-btn.danger { color: var(--danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fill, .marker, #toast { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Weight trend</h1>
+    <button class="icon-btn" id="openSettings" aria-label="Goal and settings">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="heroLabel">
+      <p class="hero-label" id="heroLabel">Trend weight</p>
+      <p class="hero-num"><span id="heroNum">–</span><span class="hero-unit" id="heroUnit">lb</span></p>
+      <p class="hero-sub" id="heroSub">Log your first weigh-in below.</p>
+      <div class="ruler" id="ruler" hidden role="img">
+        <div class="track"><div class="fill" id="fill"></div><div class="marker" id="marker"></div></div>
+        <div class="ticks" aria-hidden="true"></div>
+        <div class="ends"><span id="startLbl"></span><span id="goalLbl"></span></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Log a weigh-in">
+      <form id="logForm" novalidate>
+        <div class="row">
+          <label class="field grow">
+            <span>Weight</span>
+            <input type="text" id="wIn" class="has-suffix" inputmode="decimal" autocomplete="off" placeholder="0.0">
+            <span class="suffix" id="wUnit">lb</span>
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input type="date" id="dateIn">
+          </label>
+        </div>
+        <p class="err" id="err" role="alert"></p>
+        <button class="primary" type="submit">Save weigh-in</button>
+      </form>
+    </section>
+
+    <section class="sec" aria-labelledby="chartTitle">
+      <div class="sec-head">
+        <h2 id="chartTitle">Progress</h2>
+        <div class="seg" role="group" aria-label="Chart range">
+          <button type="button" data-r="30" aria-pressed="false">30 days</button>
+          <button type="button" data-r="90" aria-pressed="true">90 days</button>
+          <button type="button" data-r="0" aria-pressed="false">All</button>
+        </div>
+      </div>
+      <p class="readout" id="readout" aria-live="polite"></p>
+      <div class="chart" id="chart"></div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="lg-dot"></i>Weigh-in</span>
+        <span><i class="lg-trend"></i>Trend</span>
+        <span><i class="lg-goal"></i>Goal</span>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="numTitle">
+      <h2 id="numTitle">Numbers</h2>
+      <dl class="stats" id="stats"></dl>
+    </section>
+
+    <section class="sec" aria-labelledby="histTitle">
+      <h2 id="histTitle">History</h2>
+      <ul class="hist" id="history"></ul>
+      <button type="button" class="text-btn" id="moreBtn" hidden>Show all</button>
+    </section>
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastAct" hidden>Undo</button></div>
+
+<dialog id="settings" aria-labelledby="sTitle">
+  <form id="sForm" novalidate>
+    <h2 id="sTitle">Your goal</h2>
+    <p class="lede" id="sLede">Set where you are and where you want to be.</p>
+
+    <div class="unit-pick" role="radiogroup" aria-label="Unit">
+      <label><input type="radio" name="unit" value="lb"><span>lb</span></label>
+      <label><input type="radio" name="unit" value="kg"><span>kg</span></label>
+    </div>
+
+    <label class="field">
+      <span id="sStartLabel">Starting weight</span>
+      <input type="text" id="sStart" inputmode="decimal" autocomplete="off" placeholder="0.0">
+    </label>
+    <label class="field">
+      <span>Goal weight</span>
+      <input type="text" id="sGoal" inputmode="decimal" autocomplete="off" placeholder="0.0">
+    </label>
+    <p class="err" id="sErr" role="alert"></p>
+
+    <div class="dlg-actions">
+      <button type="button" class="secondary" id="sCancel">Cancel</button>
+      <button type="submit" class="primary" id="sSave">Save goal</button>
+    </div>
+
+    <div class="data-tools">
+      <button type="button" class="text-btn" id="sample">Try sample data</button>
+      <button type="button" class="text-btn" id="export">Export CSV</button>
+      <button type="button" class="text-btn danger" id="erase">Erase all data</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Storage (falls back to memory if the browser blocks it) ---------- */
+  const KEY = 'weight-trend-v1';
+  const mem = {};
+  const store = {
+    get() { try { return localStorage.getItem(KEY); } catch (e) { return mem[KEY] ?? null; } },
+    set(v) { try { localStorage.setItem(KEY, v); } catch (e) { mem[KEY] = v; } }
+  };
+
+  let state = load();
+  function load() {
+    try {
+      const raw = store.get();
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && Array.isArray(s.entries)) return { settings: s.settings || null, entries: s.entries };
+      }
+    } catch (e) {}
+    return { settings: null, entries: [] };
+  }
+  const save = () => store.set(JSON.stringify(state));
+
+  /* ---------- Helpers ---------- */
+  const $ = (s) => document.querySelector(s);
+  const pad = (n) => String(n).padStart(2, '0');
+  const dayNum = (s) => { const [y, m, d] = s.split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+  const strFromDn = (dn) => { const d = new Date(dn * 864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; };
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const toDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+  const fmtShort = (s) => toDate(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const fmtLong = (s) => toDate(s).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const fmtFull = (s) => toDate(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const f1 = (n) => n.toFixed(1);
+  const signed = (n) => (n > 0.04 ? '+' : n < -0.04 ? '−' : '') + Math.abs(n).toFixed(1);
+  const round1 = (n) => Math.round(n * 10) / 10;
+  const num = (s) => parseFloat(String(s).replace(',', '.'));
+  const LB = 2.20462;
+  const conv = (v, from, to) => from === to ? v : round1(from === 'lb' ? v / LB : v * LB);
+  const defaultUnit = () => /^en-US|^en$/i.test(navigator.language || '') ? 'lb' : 'kg';
+  const limits = (unit) => unit === 'kg' ? [20, 400] : [50, 900];
+
+  /* ---------- Trend maths ---------- */
+  // Exponentially smoothed trend: each day closes about 15% of the gap to the latest weigh-in,
+  // so one heavy or light day barely moves it.
+  function series() {
+    const out = [];
+    let t = null, prev = null;
+    for (const e of state.entries) {
+      const dn = dayNum(e.date);
+      if (t === null) t = e.w;
+      else t += (1 - Math.pow(0.85, Math.max(1, dn - prev))) * (e.w - t);
+      prev = dn;
+      out.push({ date: e.date, dn, w: e.w, t });
+    }
+    return out;
+  }
+
+  // Weekly change: straight-line fit through the last 3 weeks of trend values.
+  function weeklyRate(s) {
+    if (s.length < 2) return null;
+    const last = s[s.length - 1];
+    const pts = s.filter((p) => last.dn - p.dn <= 21);
+    if (pts.length < 2 || last.dn - pts[0].dn < 5) return null;
+    let sx = 0, sy = 0, sxy = 0, sxx = 0;
+    for (const p of pts) { const x = p.dn - last.dn; sx += x; sy += p.t; sxy += x * p.t; sxx += x * x; }
+    const n = pts.length, den = n * sxx - sx * sx;
+    return den ? ((n * sxy - sx * sy) / den) * 7 : null;
+  }
+
+  function upsert(date, w) {
+    const i = state.entries.findIndex((e) => e.date === date);
+    if (i >= 0) state.entries[i].w = w; else state.entries.push({ date, w });
+    state.entries.sort((a, b) => a.date < b.date ? -1 : 1);
+    return i >= 0;
+  }
+
+  /* ---------- Toast ---------- */
+  let toastTimer;
+  function toast(msg, actionLabel, action) {
+    $('#toastMsg').textContent = msg;
+    const btn = $('#toastAct');
+    btn.hidden = !action;
+    btn.textContent = actionLabel || '';
+    btn.onclick = () => { action && action(); $('#toast').classList.remove('show'); };
+    $('#toast').classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('#toast').classList.remove('show'), action ? 5000 : 2500);
+  }
+
+  /* ---------- Render ---------- */
+  let range = 90, active = null, showAll = false;
+
+  function render() {
+    const unit = state.settings ? state.settings.unit : defaultUnit();
+    $('#heroUnit').textContent = unit;
+    $('#wUnit').textContent = unit;
+    renderHero();
+    renderChart();
+    renderStats();
+    renderHistory();
+    const last = state.entries[state.entries.length - 1];
+    if (!$('#wIn').value && last) $('#wIn').value = f1(last.w);
+    if (!$('#dateIn').value) $('#dateIn').value = today();
+    $('#dateIn').max = today();
+  }
+
+  function renderHero() {
+    const s = series();
+    const ruler = $('#ruler');
+    if (!state.settings || !s.length) {
+      $('#heroNum').textContent = '–';
+      $('#heroSub').textContent = state.settings ? 'Log your first weigh-in below.' : 'Set a goal to get started.';
+      ruler.hidden = true;
+      return;
+    }
+    const { goal, start, unit } = state.settings;
+    const last = s[s.length - 1];
+    const losing = start > goal;
+    const reached = Math.abs(goal - last.t) < 0.5 || (losing ? last.t <= goal : last.t >= goal);
+    $('#heroNum').textContent = f1(last.t);
+
+    let main;
+    if (start === goal) main = 'Holding steady';
+    else if (reached) main = 'Goal reached';
+    else main = `${f1(Math.abs(goal - last.t))} ${unit} to go`;
+    $('#heroSub').innerHTML = `${main}<span class="quiet">Last weigh-in ${f1(last.w)} ${unit} on ${fmtShort(last.date)}</span>`;
+
+    let p = start === goal ? 1 : (start - last.t) / (start - goal);
+    p = Math.max(0, Math.min(1, p));
+    $('#fill').style.width = (p * 100) + '%';
+    $('#marker').style.left = (p * 100) + '%';
+    $('#startLbl').innerHTML = `Start <b>${f1(start)}</b>`;
+    $('#goalLbl').innerHTML = `Goal <b>${f1(goal)}</b>`;
+    ruler.setAttribute('aria-label', `${Math.round(p * 100)} percent of the way from ${f1(start)} to ${f1(goal)} ${unit}`);
+    ruler.hidden = false;
+  }
+
+  function renderChart() {
+    const el = $('#chart');
+    const s = series();
+    if (!state.settings || !s.length) {
+      el.innerHTML = '<p class="empty">Your chart appears after your first weigh-in.</p>';
+      $('#readout').textContent = '';
+      return;
+    }
+    const { goal, unit } = state.settings;
+    const W = Math.max(280, el.clientWidth || 340), H = 250;
+    const m = { t: 14, r: 40, b: 26, l: 8 };
+    const x1 = dayNum(today());
+    let x0 = range ? x1 - range : s[0].dn - 1;
+    x0 = Math.max(x0, s[0].dn - 1);
+    if (x1 - x0 < 6) x0 = x1 - 6;
+    const vis = s.filter((p) => p.dn >= x0);
+    if (!vis.length) {
+      el.innerHTML = '<p class="empty">No weigh-ins in this period.</p>';
+      $('#readout').textContent = '';
+      return;
+    }
+
+    const vals = vis.flatMap((p) => [p.w, p.t]).concat(goal);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    const padY = (hi - lo) * 0.1 || 1;
+    lo -= padY; hi += padY;
+    const rawStep = (hi - lo) / 4;
+    const step = [0.5, 1, 2, 5, 10, 20, 50].find((c) => c >= rawStep) || 50;
+    const X = (dn) => m.l + ((dn - x0) / (x1 - x0)) * (W - m.l - m.r);
+    const Y = (v) => m.t + ((hi - v) / (hi - lo)) * (H - m.t - m.b);
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Weight chart with trend and goal line">`;
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+      svg += `<line class="grid" x1="${m.l}" x2="${W - m.r + 6}" y1="${Y(v)}" y2="${Y(v)}"/>`;
+      svg += `<text class="ylab" x="${W - m.r + 10}" y="${Y(v) + 4}">${Math.round(v * 10) / 10}</text>`;
+    }
+    const mid = Math.round((x0 + x1) / 2);
+    svg += `<text class="xlab" x="${m.l}" y="${H - 6}">${fmtShort(strFromDn(x0))}</text>`;
+    svg += `<text class="xlab" x="${X(mid)}" y="${H - 6}" text-anchor="middle">${fmtShort(strFromDn(mid))}</text>`;
+    svg += `<text class="xlab" x="${W - m.r}" y="${H - 6}" text-anchor="end">${fmtShort(strFromDn(x1))}</text>`;
+
+    svg += `<line class="goal-line" x1="${m.l}" x2="${W - m.r + 6}" y1="${Y(goal)}" y2="${Y(goal)}"/>`;
+    svg += `<text class="goal-lab" x="${m.l + 2}" y="${Y(goal) - 6}">Goal ${f1(goal)}</text>`;
+
+    for (const p of vis) svg += `<circle class="dot" cx="${X(p.dn)}" cy="${Y(p.w)}" r="3.2"/>`;
+    svg += `<polyline class="trend" points="${vis.map((p) => `${X(p.dn).toFixed(1)},${Y(p.t).toFixed(1)}`).join(' ')}"/>`;
+
+    const cur = vis.find((p) => p.date === active) || vis[vis.length - 1];
+    if (active) svg += `<line class="cursor" x1="${X(cur.dn)}" x2="${X(cur.dn)}" y1="${m.t}" y2="${H - m.b}"/>`;
+    svg += `<circle class="dot-active" cx="${X(cur.dn)}" cy="${Y(cur.t)}" r="6"/>`;
+    svg += '</svg>';
+    el.innerHTML = svg;
+
+    $('#readout').innerHTML = `<strong>${f1(cur.w)} ${unit}</strong> on ${fmtShort(cur.date)}, trend ${f1(cur.t)} ${unit}`;
+
+    const node = el.querySelector('svg');
+    const pick = (e) => {
+      const r = node.getBoundingClientRect();
+      const x = (e.clientX - r.left) * (W / r.width);
+      let best = vis[0], bd = Infinity;
+      for (const p of vis) { const d = Math.abs(X(p.dn) - x); if (d < bd) { bd = d; best = p; } }
+      if (best.date !== active) { active = best.date; renderChart(); }
+    };
+    node.addEventListener('pointerdown', pick);
+    node.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' || e.buttons || true) pick(e); });
+    node.addEventListener('pointerleave', () => { if (active) { active = null; renderChart(); } });
+  }
+
+  function renderStats() {
+    const dl = $('#stats');
+    const s = series();
+    if (!state.settings || !s.length) {
+      dl.innerHTML = '<p class="hist-empty">Numbers show up once you have a few weigh-ins.</p>';
+      return;
+    }
+    const { goal, start, unit } = state.settings;
+    const last = s[s.length - 1];
+    const rate = weeklyRate(s);
+    const rows = [];
+
+    // Weekly change
+    if (rate === null) {
+      rows.push(['Weekly change', 'Not enough data', 'Needs about a week of weigh-ins']);
+    } else {
+      const toward = (rate < 0) === (start > goal) && Math.abs(rate) >= 0.05;
+      const cls = start === goal ? '' : toward ? 'good' : Math.abs(rate) < 0.05 ? '' : 'warn';
+      rows.push(['Weekly change', `<span class="${cls}">${signed(rate)} ${unit}</span>`, 'Based on the last 3 weeks']);
+    }
+
+    // Projected goal date
+    const remaining = goal - last.t;
+    const reached = start === goal ? false : (start > goal ? last.t <= goal : last.t >= goal);
+    if (reached || Math.abs(remaining) < 0.5) {
+      rows.push(['Goal date', '<span class="good">You are at goal</span>', '']);
+    } else if (rate === null) {
+      rows.push(['Goal date', 'Not enough data', 'Appears once your trend is clear']);
+    } else if (rate * remaining <= 0 || Math.abs(rate) < 0.05) {
+      rows.push(['Goal date', '<span class="warn">Not on track yet</span>', 'Trend is flat or heading away from goal']);
+    } else {
+      const days = Math.round(remaining / (rate / 7));
+      const when = strFromDn(last.dn + days);
+      const weeks = Math.max(1, Math.round(days / 7));
+      rows.push(['Goal date', fmtFull(when), days > 365 ? 'More than a year away' : `About ${weeks} week${weeks === 1 ? '' : 's'} from now`]);
+    }
+
+    // 7-day average
+    const wk = s.filter((p) => last.dn - p.dn < 7);
+    const avg = wk.reduce((a, p) => a + p.w, 0) / wk.length;
+    rows.push(['7-day average', `${f1(avg)} ${unit}`, `${wk.length} weigh-in${wk.length === 1 ? '' : 's'}`]);
+
+    // Change since start
+    const delta = last.t - start;
+    const dcls = start === goal ? '' : (delta < 0) === (start > goal) && Math.abs(delta) >= 0.05 ? 'good' : '';
+    rows.push(['Since you started', `<span class="${dcls}">${signed(delta)} ${unit}</span>`, `From ${f1(start)} ${unit}`]);
+
+    dl.innerHTML = rows.map(([k, v, sub]) =>
+      `<div><dt>${k}</dt><dd>${v}${sub ? `<small>${sub}</small>` : ''}</dd></div>`).join('');
+  }
+
+  function renderHistory() {
+    const ul = $('#history');
+    const more = $('#moreBtn');
+    const list = state.entries;
+    if (!list.length) {
+      ul.innerHTML = '<li class="hist-empty">No weigh-ins yet. Your first one will show up here.</li>';
+      more.hidden = true;
+      return;
+    }
+    const unit = state.settings ? state.settings.unit : 'lb';
+    const losing = state.settings ? state.settings.start > state.settings.goal : true;
+    const items = [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const e = list[i], prev = list[i - 1];
+      let delta = '';
+      if (prev) {
+        const d = e.w - prev.w;
+        const cls = Math.abs(d) < 0.05 ? '' : ((d < 0) === losing ? 'good' : 'warn');
+        delta = `<span class="${cls}">${signed(d)}</span>`;
+      }
+      items.push(`<li><span class="when">${fmtLong(e.date)}</span><span class="w">${f1(e.w)} ${unit}</span><span class="d">${delta}</span>` +
+        `<button class="del" data-date="${e.date}" aria-label="Delete weigh-in from ${fmtLong(e.date)}">` +
+        `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m-9 0l1 14h8l1-14"/></svg></button></li>`);
+    }
+    const shown = showAll ? items : items.slice(0, 7);
+    ul.innerHTML = shown.join('');
+    more.hidden = items.length <= 7;
+    more.textContent = showAll ? 'Show fewer' : `Show all ${items.length}`;
+  }
+
+  /* ---------- Events: logging ---------- */
+  $('#logForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!state.settings) { openSettings(); return; }
+    const unit = state.settings.unit;
+    const [min, max] = limits(unit);
+    const date = $('#dateIn').value;
+    const w = num($('#wIn').value);
+    const err = $('#err');
+    if (!date || date > today()) { err.textContent = 'Pick today or an earlier date.'; return; }
+    if (!(w >= min && w <= max)) { err.textContent = `Enter a weight between ${min} and ${max} ${unit}.`; $('#wIn').focus(); return; }
+    err.textContent = '';
+    upsert(date, round1(w));
+    save();
+    active = null;
+    $('#wIn').value = f1(round1(w));
+    $('#dateIn').value = today();
+    render();
+    toast('Weigh-in saved');
+  });
+  $('#wIn').addEventListener('input', () => { $('#err').textContent = ''; });
+
+  $('#history').addEventListener('click', (e) => {
+    const btn = e.target.closest('.del');
+    if (!btn) return;
+    const date = btn.dataset.date;
+    const removed = state.entries.find((x) => x.date === date);
+    state.entries = state.entries.filter((x) => x.date !== date);
+    save(); active = null; render();
+    toast('Weigh-in deleted', 'Undo', () => { upsert(removed.date, removed.w); save(); render(); });
+  });
+  $('#moreBtn').addEventListener('click', () => { showAll = !showAll; renderHistory(); });
+
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    range = Number(b.dataset.r);
+    active = null;
+    document.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    renderChart();
+  }));
+
+  /* ---------- Settings dialog ---------- */
+  const dlg = $('#settings');
+  let dlgUnit = 'lb';
+
+  function setUnitRadio(u) { dlg.querySelector(`input[name=unit][value=${u}]`).checked = true; dlgUnit = u; }
+
+  function openSettings() {
+    const first = !state.settings;
+    const unit = first ? defaultUnit() : state.settings.unit;
+    setUnitRadio(unit);
+    $('#sTitle').textContent = first ? 'Set your goal' : 'Your goal';
+    $('#sLede').textContent = first ? 'Add your current weight and the weight you are aiming for.' : 'Change your goal or unit. Your history stays.';
+    $('#sStartLabel').textContent = first ? 'Current weight' : 'Starting weight';
+    $('#sSave').textContent = first ? 'Start tracking' : 'Save goal';
+    $('#sCancel').hidden = first;
+    $('#sStart').value = first ? '' : f1(state.settings.start);
+    $('#sGoal').value = first ? '' : f1(state.settings.goal);
+    $('#sErr').textContent = '';
+    $('#erase').hidden = first && !state.entries.length;
+    $('#export').hidden = !state.entries.length;
+    if (!dlg.open) dlg.showModal();
+  }
+
+  dlg.querySelectorAll('input[name=unit]').forEach((r) => r.addEventListener('change', () => {
+    const to = r.value;
+    if (to === dlgUnit) return;
+    ['#sStart', '#sGoal'].forEach((id) => {
+      const v = num($(id).value);
+      if (v > 0) $(id).value = f1(conv(v, dlgUnit, to));
+    });
+    dlgUnit = to;
+  }));
+
+  $('#sForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const unit = dlg.querySelector('input[name=unit]:checked').value;
+    const [min, max] = limits(unit);
+    const start = num($('#sStart').value), goal = num($('#sGoal').value);
+    const err = $('#sErr');
+    if (!(start >= min && start <= max)) { err.textContent = `Enter a starting weight between ${min} and ${max} ${unit}.`; $('#sStart').focus(); return; }
+    if (!(goal >= min && goal <= max)) { err.textContent = `Enter a goal weight between ${min} and ${max} ${unit}.`; $('#sGoal').focus(); return; }
+    if (!state.settings) {
+      state.settings = { unit, start: round1(start), goal: round1(goal) };
+      if (!state.entries.length) upsert(today(), round1(start));
+    } else {
+      if (state.settings.unit !== unit) state.entries.forEach((en) => { en.w = conv(en.w, state.settings.unit, unit); });
+      state.settings = { unit, start: round1(start), goal: round1(goal) };
+    }
+    save();
+    dlg.close();
+    $('#wIn').value = '';
+    render();
+    toast('Goal saved');
+  });
+
+  $('#sCancel').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('cancel', (e) => { if (!state.settings) e.preventDefault(); });
+  $('#openSettings').addEventListener('click', openSettings);
+
+  $('#sample').addEventListener('click', () => {
+    if (state.entries.length && !confirm('Replace your data with sample data?')) return;
+    const unit = state.settings ? state.settings.unit : defaultUnit();
+    const f = unit === 'kg' ? 1 / LB : 1;
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const end = dayNum(today());
+    const entries = [];
+    for (let i = 70; i >= 0; i--) {
+      if (i > 0 && rnd() < 0.22) continue;
+      const base = 196 - ((70 - i) / 70) * 12.5;
+      entries.push({ date: strFromDn(end - i), w: round1((base + (rnd() - 0.5) * 2.6) * f) });
+    }
+    state = { settings: { unit, start: entries[0].w, goal: round1(175 * f) }, entries };
+    save(); $('#wIn').value = ''; dlg.close(); render();
+    toast('Sample data loaded');
+  });
+
+  $('#export').addEventListener('click', () => {
+    const unit = state.settings ? state.settings.unit : '';
+    const csv = 'date,weight,unit\n' + state.entries.map((e) => `${e.date},${e.w},${unit}`).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'weight-log.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  $('#erase').addEventListener('click', () => {
+    if (!confirm('Erase all weigh-ins and your goal? This cannot be undone.')) return;
+    state = { settings: null, entries: [] };
+    save(); $('#wIn').value = ''; dlg.close(); render(); openSettings();
+  });
+
+  /* ---------- Boot ---------- */
+  if ('ResizeObserver' in window) {
+    let lastW = 0;
+    new ResizeObserver((entries) => {
+      const w = Math.round(entries[0].contentRect.width);
+      if (w && w !== lastW) { lastW = w; renderChart(); }
+    }).observe($('#chart'));
+  }
+
+  render();
+  if (!state.settings) openSettings();
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>
